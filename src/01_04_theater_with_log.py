@@ -13,6 +13,12 @@ import statistics
 
 wait_times = [] # 記錄觀眾等待時間
 
+arrival_interval = 1 #0.20
+simulation_period = 90
+initial_count = 3
+
+log_file = open('./record.log', 'w', encoding='utf8')
+
 # 戲院類別
 class Theater(object):
     def __init__(self, env, num_cashiers, num_servers, num_ushers):
@@ -37,11 +43,15 @@ class Theater(object):
 def go_to_movies(env, moviegoer, theater):
     # 到場
     arrival_time = env.now
+    
+    log_file.write(f'{env.now},{moviegoer},arrival\n')
 
     # 購票
     with theater.cashier.request() as request:
         yield request
         yield env.process(theater.purchase_ticket(moviegoer))
+    
+    log_file.write(f'{env.now},{moviegoer},purchase\n')
 
     # 驗票
     with theater.usher.request() as request:
@@ -50,12 +60,20 @@ def go_to_movies(env, moviegoer, theater):
 
     # 購物：1/2機率會購物
     if random.choice([True, False]):
+        log_file.write(f'{env.now},{moviegoer},check,food_in\n')
+    
         with theater.server.request() as request:
             yield request
             yield env.process(theater.sell_food(moviegoer))
 
+        log_file.write(f'{env.now},{moviegoer},food_out\n')
+    else:
+        log_file.write(f'{env.now},{moviegoer},complete\n')
+    
     # 入座
     wait_times.append(env.now - arrival_time)
+    
+    # log_file.write(f'{env.now},{moviegoer},complete\n')
 
 
 # 模擬函數
@@ -64,12 +82,12 @@ def run_theater(env, num_cashiers, num_servers, num_ushers):
     theater = Theater(env, num_cashiers, num_servers, num_ushers)
 
     # 初始人數：3人
-    for moviegoer in range(3):
+    for moviegoer in range(initial_count):
         env.process(go_to_movies(env, moviegoer, theater))
 
     # 模擬
     while True:
-        yield env.timeout(0.20)  # 每隔0.2分鐘有一觀眾到場
+        yield env.timeout(arrival_interval)  # 每隔0.2分鐘有一觀眾到場
 
         moviegoer += 1
         env.process(go_to_movies(env, moviegoer, theater))
@@ -105,11 +123,11 @@ def main():
     # Setup
     random.seed(42)
     num_cashiers, num_servers, num_ushers = get_user_input()
-
+    
     # 啟動模擬
     env = simpy.Environment()
     env.process(run_theater(env, num_cashiers, num_servers, num_ushers))
-    env.run(until=90) # 模擬90分鐘
+    env.run(until=simulation_period) # 模擬90分鐘
 
     # 統計等待時間
     mins, secs = get_average_wait_time(wait_times)
