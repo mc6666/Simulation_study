@@ -282,7 +282,11 @@ while True:
     all_sprites_list.draw(screen)
     pygame.display.flip()
             
-    if save_flag:   
+    if save_flag: 
+        # 建立目錄
+        if not os.path.exists("screenshot"):
+            os.makedirs("screenshot")
+    
         if (current_time+1)%10==1: 
             pygame.image.save(screen, f"screenshot/{current_time//10:4d}.png")
     
